@@ -118,6 +118,8 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 	unsigned null_generations = 0;
 	unsigned end_count = 0;
 
+	printf("max_generations=%u, mutations_per_generation=%u, max_contiguous_null_generations=%u\n", max_generations, mutations_per_generation, max_contiguous_null_generations);
+
 	for (unsigned generation_num = 0; generation_num < max_generations; ++generation_num)
 	{
 		std::vector<SolutionModel> generation;
