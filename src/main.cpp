@@ -14,12 +14,12 @@ int main(int argc, char *argv[])
     std::stringstream jsonStream;
     jsonStream << dataFile.rdbuf();
     DataModel model(jsonStream);
-    SolutionFinder solutionFinder(&model);
+    SolutionFinder solutionFinder(model);
 
     SolutionModel solution = solutionFinder.solutionWithEvolution();
 
     solution.printSolution();
-    std::cout << "Total Cost: " << solutionFinder.solutionCost(solution) << std::endl;
+    std::cout << "Total Cost: " << solution.getCost() << std::endl;
     std::cout << "##################################################################" << std::endl;
 
     return 0;

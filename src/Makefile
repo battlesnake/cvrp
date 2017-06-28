@@ -1,7 +1,15 @@
 CC=g++
-CFLAGS=-c -Wall -std=c++11
-LDFLAGS=
+CFLAGS=-c -Wall -std=c++11 -g -Wextra
+LDFLAGS=-g
 LIBS=
+
+ifeq ($(O),y)
+CFLAGS+=-O2 -flto
+LDFLAGS+=-O2 -flto
+else
+CFLAGS+=-O0
+LDFLAGS+=
+endif
 
 SOURCES=main.cpp \
 	cvrp_idataModel.cpp \
@@ -16,11 +24,18 @@ EXECUTABLE=cvrp
 
 all: $(SOURCES) $(EXECUTABLE)
 
+test:
+	+$(MAKE) clean
+	+$(MAKE) $(EXECUTABLE)
+	/bin/time ./$(EXECUTABLE) ../data/data.json
+
 clean :
 	rm -f $(EXECUTABLE) *.o
     
 $(EXECUTABLE): $(OBJECTS) 
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@ $(LIBS)
+
+jsoncpp.o: CFLAGS+=-w
 
 .cpp.o:
 	$(CC) $(CFLAGS) $< -o $@

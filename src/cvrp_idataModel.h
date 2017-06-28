@@ -21,14 +21,14 @@ class IDataModel
     public:
         virtual ~IDataModel();
 
-        virtual double distanceBetweenClients(int client1Id, int client2Id) = 0;
+        virtual double distanceBetweenClients(int client1Id, int client2Id) const = 0;
         virtual int vehicleCapacity() const = 0;
-        virtual Coord& depot() = 0;
-        virtual int getClientDemand(int clientId) = 0;
-        virtual Coord getClientLocation(int clientId) = 0;
-        virtual int numberOfClients() = 0;
-        virtual void getClients(std::vector<int>& clients) = 0;
-        virtual double getClientDistanceFromDepot(int clientId) = 0;
+        virtual const Coord& depot() const = 0;
+        virtual int getClientDemand(int clientId) const = 0;
+        virtual const Coord& getClientLocation(int clientId) const = 0;
+        virtual int numberOfClients() const = 0;
+        virtual std::vector<int> getClients() const = 0;
+        virtual double getClientDistanceFromDepot(int clientId) const = 0;
 };
 
 }//cvrp namespace

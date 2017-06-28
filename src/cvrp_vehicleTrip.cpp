@@ -6,7 +6,7 @@
 namespace cvrp
 {
 
-VehicleTrip::VehicleTrip(IDataModel* model) : m_model(model)
+VehicleTrip::VehicleTrip(const IDataModel& model) : m_model(model)
 {
     m_demandCovered = 0;
     m_cost = 0.0;
@@ -25,20 +25,20 @@ std::string VehicleTrip::getTripStr() const
     return stream.str();
 }
 
-bool VehicleTrip::canAccommodate(int clientId)
+bool VehicleTrip::canAccommodate(int clientId) const
 {
-    return ((m_model->getClientDemand(clientId) + m_demandCovered) <= m_model->vehicleCapacity());
+    return ((m_model.getClientDemand(clientId) + m_demandCovered) <= m_model.vehicleCapacity());
 }
 
 bool VehicleTrip::isValidTrip() const
 {
-    return m_demandCovered <= m_model->vehicleCapacity();
+    return m_demandCovered <= m_model.vehicleCapacity();
 }
 
 void VehicleTrip::addClientToTrip(int clientId)
 {
     m_clientSequence.push_back(clientId);
-    m_demandCovered += m_model->getClientDemand(clientId);
+    m_demandCovered += m_model.getClientDemand(clientId);
 }
 
 void VehicleTrip::reEvaluateDemandAndCost()
@@ -46,7 +46,7 @@ void VehicleTrip::reEvaluateDemandAndCost()
     m_demandCovered = 0;
     for (auto i : m_clientSequence)
     {
-        m_demandCovered += m_model->getClientDemand(i);
+        m_demandCovered += m_model.getClientDemand(i);
     }
     optimiseCost();
 }
@@ -60,22 +60,22 @@ void VehicleTrip::optimiseCost()
         double leastCost;
         if (i == 0)
         {
-            leastCost = m_model->getClientDistanceFromDepot(m_clientSequence[i]);
+            leastCost = m_model.getClientDistanceFromDepot(m_clientSequence[i]);
         }
         else
         {
-            leastCost = m_model->distanceBetweenClients(m_clientSequence[i-1], m_clientSequence[i]);
+            leastCost = m_model.distanceBetweenClients(m_clientSequence[i-1], m_clientSequence[i]);
         }
         for (unsigned int j = i+1; j < m_clientSequence.size(); j++)
         {
             double currCost;
             if (i==0)
             {
-                currCost = m_model->getClientDistanceFromDepot(m_clientSequence[j]);
+                currCost = m_model.getClientDistanceFromDepot(m_clientSequence[j]);
             }
             else
             {
-                currCost = m_model->distanceBetweenClients(m_clientSequence[i-1], m_clientSequence[j]);
+                currCost = m_model.distanceBetweenClients(m_clientSequence[i-1], m_clientSequence[j]);
             }
 
             if (currCost < leastCost)
@@ -91,7 +91,7 @@ void VehicleTrip::optimiseCost()
         }
         m_cost += leastCost;
     }
-    m_cost += m_model->getClientDistanceFromDepot(m_clientSequence.back());
+    m_cost += m_model.getClientDistanceFromDepot(m_clientSequence.back());
 }
 
 }//cvrp namespace

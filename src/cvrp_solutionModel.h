@@ -6,16 +6,14 @@
 
 namespace cvrp
 {
-typedef std::vector<VehicleTrip>::iterator SolutionIter;
-typedef std::vector<VehicleTrip>::const_iterator ConstSolIter;
 class SolutionModel
 {
     public:
-        SolutionModel();
-
-        std::vector<VehicleTrip>& chromosomes()  { return m_solution; }
-        const std::vector<VehicleTrip>& chromosomesConst()  { return m_solution; }
+        std::vector<VehicleTrip>& chromosomes() { return m_solution; }
+        const std::vector<VehicleTrip>& chromosomesConst() const { return m_solution; }
         void printSolution();
+	double getCost() const;
+	bool isValid(int num_clients) const;
 
     private:
         std::vector<VehicleTrip> m_solution;

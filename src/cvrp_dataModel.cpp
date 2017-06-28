@@ -6,14 +6,14 @@
 namespace cvrp
 {
 
-DataModel::DataModel(std::stringstream& jsonData) 
+DataModel::DataModel(std::stringstream& jsonData)
 {
     Json::Value root;
     jsonData >> root;
     populateData(root);
 }
 
-double DataModel::getClientDistanceFromDepot(int clientId)
+double DataModel::getClientDistanceFromDepot(int clientId) const
 {
     Clients::const_iterator it = m_clientDemands.find(clientId);
     if(it == m_clientDemands.end())
@@ -25,21 +25,21 @@ double DataModel::getClientDistanceFromDepot(int clientId)
     return Util::distance(m_depot.first, m_depot.second, it->second.position.first, it->second.position.second);
 }
 
-double DataModel::distanceBetweenClients(int client1Id, int client2Id)
+double DataModel::distanceBetweenClients(int client1Id, int client2Id) const
 {
-    if(m_clientDemands.find(client1Id) == m_clientDemands.end() 
+    if(m_clientDemands.find(client1Id) == m_clientDemands.end()
             || m_clientDemands.find(client2Id) == m_clientDemands.end())
     {
         std::stringstream error;
         error << "Invalid client IDs provided: " << client1Id << " and " << client2Id;
         throw std::invalid_argument(error.str());
     }
-    Client c1 = m_clientDemands[client1Id];
-    Client c2 = m_clientDemands[client2Id];
+    Client c1 = getClient(client1Id);
+    Client c2 = getClient(client2Id);
     return Util::distance(c1.position.first, c1.position.second, c2.position.first, c2.position.second);
 }
 
-int DataModel::getClientDemand(int clientId)
+int DataModel::getClientDemand(int clientId) const
 {
     if(m_clientDemands.find(clientId) == m_clientDemands.end())
     {
@@ -47,10 +47,10 @@ int DataModel::getClientDemand(int clientId)
         error << "Invalid client ID provided: " << clientId;
         throw std::invalid_argument(error.str());
     }
-    return m_clientDemands[clientId].demand;
+    return getClient(clientId).demand;
 }
 
-Coord DataModel::getClientLocation(int clientId)
+const Coord& DataModel::getClientLocation(int clientId) const
 {
     if(m_clientDemands.find(clientId) == m_clientDemands.end())
     {
@@ -58,21 +58,23 @@ Coord DataModel::getClientLocation(int clientId)
         error << "Invalid client ID provided: " << clientId;
         throw std::invalid_argument(error.str());
     }
-    return m_clientDemands[clientId].position;
+    return getClient(clientId).position;
 }
 
-int DataModel::numberOfClients()
+int DataModel::numberOfClients() const
 {
     return m_clientDemands.size();
 }
 
-void DataModel::getClients(std::vector<int>& clients)
+std::vector<int> DataModel::getClients() const
 {
+	std::vector<int> clients;
     for (Clients::const_iterator it = m_clientDemands.begin();
             it != m_clientDemands.end(); ++it)
     {
         clients.push_back(it->first);
     }
+    return clients;
 }
 
 void DataModel::populateData(Json::Value& jsonObj)
