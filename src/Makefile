@@ -3,6 +3,15 @@ CFLAGS=-c -Wall -std=c++11 -g -Wextra
 LDFLAGS=-g
 LIBS=
 
+ifeq ($(OMP),y)
+CFLAGS+=-fopenmp
+LDFLAGS+=-fopenmp
+LIBS+=-lpthread
+else
+CFLAGS+=-Wno-unknown-pragmas
+LDFLAGS+=-Wno-unknown-pragmas
+endif
+
 ifeq ($(O),y)
 CFLAGS+=-O2 -flto
 LDFLAGS+=-O2 -flto

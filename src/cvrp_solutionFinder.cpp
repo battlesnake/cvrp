@@ -116,11 +116,13 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		for (const auto& oldSol : solutions)
 		{
 			const auto startingCost = oldSol.getCost();
+			#pragma omp parallel for
 			for (int i = 0; i < 10000; i++)
 			{
 				const auto newSol = make_crossover(oldSol);
 				const auto currSolCost = newSol.getCost();
 				if (currSolCost < startingCost && newSol.isValid(m_model.numberOfClients()))
+				#pragma omp critical
 				{
 					if (currSolCost < leastCost)
 					{
