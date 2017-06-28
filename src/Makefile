@@ -2,6 +2,9 @@ CXXFLAGS:=-c -Wall -std=c++11 -Wextra -ffunction-sections -fdata-sections
 LDFLAG:=-Wl,--gc-sections
 LIBS=
 
+OMP?=y
+O?=y
+
 ifeq ($(OMP),y)
 CXXFLAGS+=-fopenmp
 LDFLAGS+=-fopenmp

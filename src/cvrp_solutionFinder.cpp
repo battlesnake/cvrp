@@ -1,5 +1,7 @@
 #include "cvrp_solutionFinder.h"
 #include "cvrp_util.h"
+#include <algorithm>
+#include <random>
 
 namespace cvrp
 {
@@ -12,14 +14,16 @@ SolutionModel SolutionFinder::getNaiveSolution() const
 {
 	SolutionModel solution;
 	solution.chromosomes().push_back(VehicleTrip(m_model));
-	for (unsigned int i = 0; i < m_dnaSequence.size(); i++)
+	auto genome = m_dnaSequence;
+	std::shuffle(genome.begin(), genome.end(), std::mt19937(std::random_device{}()));
+	for (const auto& gene : genome)
 	{
 		bool clientOnTrip = false;
 		for (auto& chromosome : solution.chromosomes())
 		{
-			if(chromosome.canAccommodate(m_dnaSequence[i]))
+			if(chromosome.canAccommodate(gene))
 			{
-				chromosome.addClientToTrip(m_dnaSequence[i]);
+				chromosome.addClientToTrip(gene);
 				clientOnTrip = true;
 				break;
 			}
@@ -27,7 +31,7 @@ SolutionModel SolutionFinder::getNaiveSolution() const
 		if (!clientOnTrip)
 		{
 			solution.chromosomes().push_back(VehicleTrip(m_model));
-			solution.chromosomes().back().addClientToTrip(m_dnaSequence[i]);
+			solution.chromosomes().back().addClientToTrip(gene);
 		}
 	}
 	for (auto& chromosome : solution.chromosomes())
@@ -105,30 +109,61 @@ void SolutionFinder::crossover(SolutionModel& solution) const
 
 SolutionModel SolutionFinder::solutionWithEvolution() const
 {
-	constexpr unsigned max_generations = 100;
+	constexpr unsigned max_generations = 1000;
 	constexpr unsigned mutations_per_generation = 10000;
-	constexpr unsigned max_contiguous_null_generations = 10;
+	constexpr unsigned max_contiguous_null_generations = 30;
+	constexpr unsigned initial_population = 100;
+	constexpr unsigned min_population = 10;
 
 	const bool progress = !getenv("HIDE_PROGRESS");
 	const bool benching = getenv("BENCH");
 
-	std::vector<SolutionModel> solutions;
-	solutions.emplace_back(getNaiveSolution());
-	auto leastCost = solutions.back().getCost();
+	std::vector<SolutionModel> population;
+	double leastCost = -std::numeric_limits<double>::infinity();
 	unsigned null_generations = 0;
 	unsigned end_count = 0;
+
+	const auto increase_population = [&] () {
+		population.emplace_back(getNaiveSolution());
+		auto cost = population.back().getCost();
+		if (cost < leastCost || std::isinf(leastCost)) {
+			leastCost = cost;
+		}
+	};
+
+	const auto& get_best = [&] () {
+		SolutionModel *sol = nullptr;
+		for (auto& p : population)
+		{
+			if (sol == nullptr || p.getCost() < sol->getCost())
+			{
+				sol = &p;
+			}
+		}
+		return *sol;
+	};
+
+	/* Initial population */
+	for (unsigned i = 0; i < initial_population; ++i)
+	{
+		increase_population();
+	}
 
 	printf("max_generations=%u, mutations_per_generation=%u, max_contiguous_null_generations=%u\n", max_generations, mutations_per_generation, max_contiguous_null_generations);
 
 	for (unsigned generation_num = 0; generation_num < max_generations; ++generation_num)
 	{
+		/* Maintain minimum population size */
+		while (population.size() < min_population) {
+			increase_population();
+		}
 		std::vector<SolutionModel> generation;
 		bool foundBetterGeneration = false;
 		if (progress)
 		{
-			fprintf(stderr, "\rsolutions=%zu, round=%u/%u (%.1f%%), score=%.1f, null rounds=%u            ", solutions.size(), generation_num, max_generations, (generation_num * 100.0 / max_generations), leastCost, null_generations);
+			fprintf(stderr, "\rpopulation=%zu, round=%u/%u (%.1f%%), score=%.1f, null rounds=%u            ", population.size(), generation_num, max_generations, (generation_num * 100.0 / max_generations), leastCost, null_generations);
 		}
-		for (const auto& oldSol : solutions)
+		for (const auto& oldSol : population)
 		{
 			const auto startingCost = oldSol.getCost();
 			#pragma omp parallel for
@@ -150,16 +185,23 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		}
 		if (foundBetterGeneration)
 		{
-			solutions = std::move(generation);
+			population = std::move(generation);
 			if (progress)
 			{
 				fprintf(stderr, "\n");
 			}
 		} else {
+			/*
+			 * No improvement?  Take fittest member only and then
+			 * apply minimum-population rule on next iteration.
+			 */
 			null_generations++;
 			if (end_count++ == max_contiguous_null_generations && !benching) {
 				break;
 			}
+			auto best = get_best();
+			population.clear();
+			population.emplace_back(best);
 		}
 	}
 
@@ -168,7 +210,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		fprintf(stderr, "\n");
 	}
 
-	return solutions.back();
+	return get_best();
 }
 
 }//cvrp namespace
