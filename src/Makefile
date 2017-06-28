@@ -1,22 +1,21 @@
-CC=g++
-CFLAGS=-c -Wall -std=c++11 -g -Wextra
-LDFLAGS=-g
+CXXFLAGS:=-c -Wall -std=c++11 -g -Wextra
+LDFLAG:=-g
 LIBS=
 
 ifeq ($(OMP),y)
-CFLAGS+=-fopenmp
+CXXFLAGS+=-fopenmp
 LDFLAGS+=-fopenmp
 LIBS+=-lpthread
 else
-CFLAGS+=-Wno-unknown-pragmas
+CXXFLAGS+=-Wno-unknown-pragmas
 LDFLAGS+=-Wno-unknown-pragmas
 endif
 
 ifeq ($(O),y)
-CFLAGS+=-O2 -flto
+CXXFLAGS+=-O2 -flto
 LDFLAGS+=-O2 -flto
 else
-CFLAGS+=-O0
+CXXFLAGS+=-O0
 LDFLAGS+=
 endif
 
@@ -31,20 +30,23 @@ SOURCES=main.cpp \
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=cvrp
 
-all: $(SOURCES) $(EXECUTABLE)
+all: $(EXECUTABLE)
 
 test:
 	+$(MAKE) clean
 	+$(MAKE) $(EXECUTABLE)
 	/bin/time ./$(EXECUTABLE) ../data/data.json
 
+bench:
+	@echo 'Testing with OpenMP enabled'
+	+@$(MAKE) -s --no-print-directory HIDE_PROGRESS=y O=y OMP=y test
+	@echo 'Testing with OpenMP disabled'
+	+@$(MAKE) -s --no-print-directory HIDE_PROGRESS=y O=y OMP=n test
+
 clean :
 	rm -f $(EXECUTABLE) *.o
-    
-$(EXECUTABLE): $(OBJECTS) 
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@ $(LIBS)
 
-jsoncpp.o: CFLAGS+=-w
+$(EXECUTABLE): $(OBJECTS)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-.cpp.o:
-	$(CC) $(CFLAGS) $< -o $@
+jsoncpp.o: CXXFLAGS+=-w
