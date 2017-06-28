@@ -2,6 +2,7 @@
 #include "cvrp_util.h"
 
 #include <sstream>
+#include <functional>
 
 namespace cvrp
 {
@@ -16,10 +17,9 @@ std::string VehicleTrip::getTripStr() const
 {
     std::stringstream stream;
     stream << "x->";
-    for (std::vector<int>::const_iterator ite = m_clientSequence.begin();
-                ite != m_clientSequence.end(); ++ite)
+    for (const auto& waypoint : m_clientSequence)
     {
-        stream << *ite << "->";
+        stream << waypoint << "->";
     }
     stream << "x ------- " << m_demandCovered;
     return stream.str();
@@ -53,29 +53,34 @@ void VehicleTrip::reEvaluateDemandAndCost()
 
 void VehicleTrip::optimiseCost()
 {
+    std::vector<int *> ordered;
+    for (auto& x : m_clientSequence)
+    {
+        ordered.push_back(&x);
+    }
     m_cost = 0;
-    for (unsigned int i = 0; i < m_clientSequence.size(); i++)
+    for (unsigned int i = 0; i < ordered.size(); i++)
     {
         unsigned int nearestClientIndex = i;
         double leastCost;
         if (i == 0)
         {
-            leastCost = m_model.getClientDistanceFromDepot(m_clientSequence[i]);
+            leastCost = m_model.getClientDistanceFromDepot(*ordered[i]);
         }
         else
         {
-            leastCost = m_model.distanceBetweenClients(m_clientSequence[i-1], m_clientSequence[i]);
+            leastCost = m_model.distanceBetweenClients(*ordered[i-1], *ordered[i]);
         }
         for (unsigned int j = i+1; j < m_clientSequence.size(); j++)
         {
             double currCost;
             if (i==0)
             {
-                currCost = m_model.getClientDistanceFromDepot(m_clientSequence[j]);
+                currCost = m_model.getClientDistanceFromDepot(*ordered[j]);
             }
             else
             {
-                currCost = m_model.distanceBetweenClients(m_clientSequence[i-1], m_clientSequence[j]);
+                currCost = m_model.distanceBetweenClients(*ordered[i-1], *ordered[j]);
             }
 
             if (currCost < leastCost)
@@ -87,7 +92,7 @@ void VehicleTrip::optimiseCost()
 
         if (nearestClientIndex != i)
         {
-            std::swap(m_clientSequence[i], m_clientSequence[nearestClientIndex]);
+            std::swap(*ordered[i], *ordered[nearestClientIndex]);
         }
         m_cost += leastCost;
     }

@@ -15,54 +15,51 @@ double Util::distance(int x1, int y1, int x2, int y2)
     return sqrt(pow((x2 - x1), 2) + pow((y2 - y1), 2));
 }
 
-void Util::swapElements(std::vector<int>& arr, int index1, int index2)
-{
-    int temp = arr[index1];
-    arr[index1] = arr[index2];
-    arr[index2] = temp;
-}
-
 int Util::generateRandomNumberInRange(int min, int max)
 {
-    static thread_local std::default_random_engine gen;
+    static thread_local std::default_random_engine gen(std::random_device{}());
     std::uniform_int_distribution<int> distribution(min, max);
     return distribution(gen);
 }
 
-void Util::splitAndCascade(std::vector<int>& first, std::vector<int>& second, int splitPoint)
+std::list<int>::iterator list_ptr(std::list<int>::iterator it, size_t idx)
 {
-    std::vector<int> firstSplit(first.begin() + splitPoint, first.end());
-    std::vector<int> secondSplit(second.begin() + splitPoint, second.end());
-
-    first.erase(first.begin() + splitPoint, first.end());
-    second.erase(second.begin() + splitPoint, second.end());
-
-    first.insert(first.end(), secondSplit.begin(), secondSplit.end());
-    second.insert(second.end(), firstSplit.begin(), firstSplit.end());
+    while (idx--) {
+        ++it;
+    }
+    return it;
 }
 
-void Util::splitAndFlipCascade(std::vector<int>& first, std::vector<int>& second, int splitPoint)
+void Util::splitAndCascade(std::list<int>& first, std::list<int>& second, int splitPoint)
 {
-    std::vector<int> firstSplit(first.begin() + splitPoint, first.end());
-    std::vector<int> secondSplit(second.begin(), second.begin() + splitPoint);
-
-    first.erase(first.begin() + splitPoint, first.end());
-    second.erase(second.begin(), second.begin() + splitPoint);
-
-    first.insert(first.end(), secondSplit.begin(), secondSplit.end());
-    second.insert(second.end(), firstSplit.begin(), firstSplit.end());
+    /* Swaps tails of the lists */
+    std::list<int> tmp;
+    tmp.splice(tmp.begin(), first, list_ptr(first.begin(), splitPoint), first.end());
+    first.splice(first.end(), second, list_ptr(second.begin(), splitPoint), second.end());
+    second.splice(second.end(), tmp, tmp.begin(), tmp.end());
 }
 
-void Util::spliceAndCascade(std::vector<int>& first, std::vector<int>& second, int start, int end)
+void Util::splitAndFlipCascade(std::list<int>& first, std::list<int>& second, int splitPoint)
 {
-    std::vector<int> firstSplice(first.begin() + start, first.begin() + end);
-    std::vector<int> secondSplice(second.begin() + start, second.begin() + end);
+    /* Swaps tail of first with head of second list */
+    std::list<int> tmp;
+    tmp.splice(tmp.begin(), first, list_ptr(first.begin(), splitPoint), first.end());
+    first.splice(first.end(), second, second.begin(), list_ptr(second.begin(), splitPoint));
+    second.splice(second.end(), tmp, tmp.begin(), tmp.end());
+}
 
-    first.erase(first.begin() + start, first.begin() + end);
-    second.erase(second.begin() + start, second.begin() + end);
+void Util::spliceAndCascade(std::list<int>& first, std::list<int>& second, int start, int end)
+{
+    /* Swaps subrange of each list */
+    auto first_begin = list_ptr(first.begin(), start);
+    auto second_begin = list_ptr(second.begin(), start);
+    auto first_end = list_ptr(first_begin, end - start);
+    auto second_end = list_ptr(second_begin, end - start);
 
-    first.insert(first.end(), secondSplice.begin(), secondSplice.end());
-    second.insert(second.end(), firstSplice.begin(), firstSplice.end());
+    std::list<int> tmp;
+    tmp.splice(tmp.begin(), first, first_begin, first_end);
+    first.splice(first.end(), second, second_begin, second_end);
+    second.splice(second.end(), tmp, tmp.begin(), tmp.end());
 }
 
 }//cvrp namespace
