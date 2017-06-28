@@ -87,7 +87,7 @@ void VehicleTrip::optimiseCost()
 
         if (nearestClientIndex != i)
         {
-            Util::swapElements(m_clientSequence, i, nearestClientIndex);
+            std::swap(m_clientSequence[i], m_clientSequence[nearestClientIndex]);
         }
         m_cost += leastCost;
     }

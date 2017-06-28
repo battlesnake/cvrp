@@ -10,6 +10,10 @@ using namespace cvrp;
 
 int main(int argc, char *argv[])
 {
+    if (argc != 2)
+    {
+	    throw std::runtime_error("Required parameter missing");
+    }
     std::ifstream dataFile(argv[1], std::ifstream::binary);
     std::stringstream jsonStream;
     jsonStream << dataFile.rdbuf();

@@ -22,13 +22,6 @@ void Util::swapElements(std::vector<int>& arr, int index1, int index2)
     arr[index2] = temp;
 }
 
-void Util::randomShuffleElements(std::vector<int>& arr)
-{
-    std::random_device rd;
-    std::mt19937 g(rd());
-    std::shuffle(arr.begin(), arr.end(), g);
-}
-
 int Util::generateRandomNumberInRange(int min, int max)
 {
     static thread_local std::default_random_engine gen;

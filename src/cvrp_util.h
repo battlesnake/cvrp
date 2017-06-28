@@ -14,8 +14,6 @@ class Util
         static void splitAndCascade(std::vector<int>& first, std::vector<int>& second, int splitpoint);
         static void splitAndFlipCascade(std::vector<int>& first, std::vector<int>& second, int splitPoint);
         static void spliceAndCascade(std::vector<int>& first, std::vector<int>& second, int start, int end);
-        static bool randomBool();
-        static void randomShuffleElements(std::vector<int>& arr);
 };
 
 }//cvrp namespace
