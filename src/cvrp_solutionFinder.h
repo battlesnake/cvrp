@@ -11,7 +11,7 @@ class SolutionFinder
     public:
         SolutionFinder(const IDataModel& model);
 
-        SolutionModel getSolution() const;
+        SolutionModel getNaiveSolution() const;
         bool validateSolution(const SolutionModel& solution) const;
         SolutionModel solutionWithEvolution() const;
 

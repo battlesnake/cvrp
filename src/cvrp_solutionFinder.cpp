@@ -8,7 +8,7 @@ SolutionFinder::SolutionFinder(const IDataModel& model) : m_model(model), m_dnaS
 {
 }
 
-SolutionModel SolutionFinder::getSolution() const
+SolutionModel SolutionFinder::getNaiveSolution() const
 {
 	SolutionModel solution;
 	solution.chromosomes().push_back(VehicleTrip(m_model));
@@ -105,19 +105,31 @@ void SolutionFinder::crossover(SolutionModel& solution) const
 
 SolutionModel SolutionFinder::solutionWithEvolution() const
 {
+	constexpr unsigned max_generations = 1000;
+	constexpr unsigned mutations_per_generation = 10000;
+	constexpr unsigned max_contiguous_null_generations = 30;
+
+	const bool progress = !getenv("HIDE_PROGRESS");
+
 	std::vector<SolutionModel> solutions;
-	solutions.emplace_back(getSolution());
+	solutions.emplace_back(getNaiveSolution());
 	auto leastCost = solutions.back().getCost();
-	for (int x = 0; x < 1000; ++x)
+	unsigned null_generations = 0;
+	unsigned end_count = 0;
+
+	for (unsigned generation_num = 0; generation_num < max_generations; ++generation_num)
 	{
 		std::vector<SolutionModel> generation;
 		bool foundBetterGeneration = false;
-		fprintf(stderr, "\rn=%zu, x=%u ...        ", solutions.size(), x);
+		if (progress)
+		{
+			fprintf(stderr, "\rsolutions=%zu, round=%u/%u (%.1f%%), score=%.1f, null rounds=%u            ", solutions.size(), generation_num, max_generations, (generation_num * 100.0 / max_generations), leastCost, null_generations);
+		}
 		for (const auto& oldSol : solutions)
 		{
 			const auto startingCost = oldSol.getCost();
 			#pragma omp parallel for
-			for (int i = 0; i < 10000; i++)
+			for (unsigned mutation = 0; mutation < mutations_per_generation; mutation++)
 			{
 				const auto newSol = make_crossover(oldSol);
 				const auto currSolCost = newSol.getCost();
@@ -136,8 +148,16 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		if (foundBetterGeneration)
 		{
 			solutions = std::move(generation);
+		} else {
+			null_generations++;
+			if (end_count++ == max_contiguous_null_generations) {
+				break;
+			}
 		}
 	}
+
+	printf("\n");
+
 	return solutions.back();
 }
 
