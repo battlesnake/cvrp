@@ -110,10 +110,10 @@ void SolutionFinder::crossover(SolutionModel& solution) const
 SolutionModel SolutionFinder::solutionWithEvolution() const
 {
 	constexpr unsigned max_generations = 1000;
-	constexpr unsigned mutations_per_generation = 1000;
+	constexpr unsigned mutations_per_generation = 10000;
 	constexpr unsigned max_contiguous_null_generations = 10;
-	constexpr unsigned initial_population = 1000;
-	constexpr unsigned max_population = 1000;
+	constexpr unsigned initial_population = 10000;
+	constexpr unsigned max_population = 10000;
 
 	const bool progress = !getenv("HIDE_PROGRESS");
 	const bool benching = getenv("BENCH");
