@@ -110,10 +110,10 @@ void SolutionFinder::crossover(SolutionModel& solution) const
 SolutionModel SolutionFinder::solutionWithEvolution() const
 {
 	constexpr unsigned max_generations = 1000;
-	constexpr unsigned mutations_per_generation = 10000;
-	constexpr unsigned max_contiguous_null_generations = 30;
-	constexpr unsigned initial_population = 100;
-	constexpr unsigned min_population = 10;
+	constexpr unsigned mutations_per_generation = 1000;
+	constexpr unsigned max_contiguous_null_generations = 10;
+	constexpr unsigned initial_population = 1000;
+	constexpr unsigned max_population = 1000;
 
 	const bool progress = !getenv("HIDE_PROGRESS");
 	const bool benching = getenv("BENCH");
@@ -131,7 +131,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		}
 	};
 
-	const auto& get_best = [&] () {
+	const auto& getBest = [&] () {
 		SolutionModel *sol = nullptr;
 		for (auto& p : population)
 		{
@@ -153,55 +153,54 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 
 	for (unsigned generation_num = 0; generation_num < max_generations; ++generation_num)
 	{
-		/* Maintain minimum population size */
-		while (population.size() < min_population) {
-			increase_population();
-		}
 		std::vector<SolutionModel> generation;
 		bool foundBetterGeneration = false;
 		if (progress)
 		{
 			fprintf(stderr, "\rpopulation=%zu, round=%u/%u (%.1f%%), score=%.1f, null rounds=%u            ", population.size(), generation_num, max_generations, (generation_num * 100.0 / max_generations), leastCost, null_generations);
 		}
-		for (const auto& oldSol : population)
+		const auto costThreshold = getBest().getCost();
+		#pragma omp parallel for
+		for (size_t n = 0; n < population.size(); ++n)
 		{
-			const auto startingCost = oldSol.getCost();
-			#pragma omp parallel for
+			const auto& oldSol = population[n];
 			for (unsigned mutation = 0; mutation < mutations_per_generation; mutation++)
 			{
 				const auto newSol = make_crossover(oldSol);
 				const auto currSolCost = newSol.getCost();
-				if (currSolCost < startingCost && newSol.isValid(m_model.numberOfClients()))
+				if (currSolCost < costThreshold && newSol.isValid(m_model.numberOfClients()))
 				#pragma omp critical
 				{
 					if (currSolCost < leastCost)
 					{
 						leastCost = currSolCost;
 						foundBetterGeneration = true;
-						generation.push_back(newSol);
 					}
+					generation.push_back(newSol);
 				}
 			}
 		}
 		if (foundBetterGeneration)
 		{
-			population = std::move(generation);
+			if (generation.size() <= max_population)
+			{
+				population = std::move(generation);
+			} else {
+				auto end_it = generation.begin() + max_population;
+				std::partial_sort(generation.begin(), end_it, generation.end(),
+					[] (const auto& a, const auto& b) { return a.getCost() < b.getCost(); });
+				population.clear();
+				std::move(generation.begin(), end_it, std::back_inserter(population));
+			}
 			if (progress)
 			{
 				fprintf(stderr, "\n");
 			}
 		} else {
-			/*
-			 * No improvement?  Take fittest member only and then
-			 * apply minimum-population rule on next iteration.
-			 */
 			null_generations++;
 			if (end_count++ == max_contiguous_null_generations && !benching) {
 				break;
 			}
-			auto best = get_best();
-			population.clear();
-			population.emplace_back(best);
 		}
 	}
 
@@ -210,7 +209,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		fprintf(stderr, "\n");
 	}
 
-	return get_best();
+	return getBest();
 }
 
 }//cvrp namespace

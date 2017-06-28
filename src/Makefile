@@ -1,4 +1,4 @@
-CXXFLAGS:=-c -Wall -std=c++11 -Wextra -ffunction-sections -fdata-sections
+CXXFLAGS:=-c -Wall -std=c++14 -Wextra -ffunction-sections -fdata-sections -march=native
 LDFLAG:=-Wl,--gc-sections
 LIBS=
 
