@@ -24,7 +24,7 @@ void Util::swapElements(std::vector<int>& arr, int index1, int index2)
 
 int Util::generateRandomNumberInRange(int min, int max)
 {
-    static thread_local std::default_random_engine gen;
+    static thread_local std::default_random_engine gen{std::random_device{}()};
     std::uniform_int_distribution<int> distribution(min, max);
     return distribution(gen);
 }
