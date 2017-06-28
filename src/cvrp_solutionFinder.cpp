@@ -105,9 +105,9 @@ void SolutionFinder::crossover(SolutionModel& solution) const
 
 SolutionModel SolutionFinder::solutionWithEvolution() const
 {
-	constexpr unsigned max_generations = 1000;
+	constexpr unsigned max_generations = 100;
 	constexpr unsigned mutations_per_generation = 10000;
-	constexpr unsigned max_contiguous_null_generations = 30;
+	constexpr unsigned max_contiguous_null_generations = 10;
 
 	const bool progress = !getenv("HIDE_PROGRESS");
 	const bool benching = getenv("BENCH");
@@ -151,7 +151,10 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		if (foundBetterGeneration)
 		{
 			solutions = std::move(generation);
-			fprintf(stderr, "\n");
+			if (progress)
+			{
+				fprintf(stderr, "\n");
+			}
 		} else {
 			null_generations++;
 			if (end_count++ == max_contiguous_null_generations && !benching) {
@@ -160,7 +163,10 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		}
 	}
 
-	fprintf(stderr, "\n");
+	if (progress)
+	{
+		fprintf(stderr, "\n");
+	}
 
 	return solutions.back();
 }
