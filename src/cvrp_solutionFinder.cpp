@@ -2,6 +2,7 @@
 #include "cvrp_util.h"
 #include <algorithm>
 #include <random>
+#include <omp.h>
 
 namespace cvrp
 {
@@ -52,54 +53,33 @@ void SolutionFinder::crossover(SolutionModel& solution) const
 {
 	auto& chromosomes = solution.chromosomes();
 
-	int crossoverSubject1 = Util::generateRandomNumberInRange(1,chromosomes.size()-1);
-	int crossoverSubject2 = Util::generateRandomNumberInRange(1,chromosomes.size()-1);
+	static thread_local std::mt19937 gen{std::random_device{}()};
+	std::uniform_int_distribution<int> uniform(1, chromosomes.size() - 1);
+
+	int crossoverSubject1 = uniform(gen);
+	int crossoverSubject2 = uniform(gen);
 	while (crossoverSubject2 == crossoverSubject1)
 	{
-		crossoverSubject2 = Util::generateRandomNumberInRange(1,chromosomes.size()-1);
+		crossoverSubject2 = uniform(gen);
 	}
 
 	int smallChromosomeSize = chromosomes[crossoverSubject1].getSeqSize() < chromosomes[crossoverSubject2].getSeqSize()
 			? chromosomes[crossoverSubject1].getSeqSize()
 			: chromosomes[crossoverSubject2].getSeqSize();
 
-	int crossoverPoint = Util::generateRandomNumberInRange(1,smallChromosomeSize-1);
+	int crossoverPoint = std::uniform_int_distribution<int>(1, smallChromosomeSize - 1)(gen);
 
 	auto& subject1 = chromosomes[crossoverSubject1].clientSequence();
 	auto& subject2 = chromosomes[crossoverSubject2].clientSequence();
 
-	int randomNum = Util::generateRandomNumberInRange(1,10);
-
-	/*
-	 * Might be faster to use linked lists splice/join rather than vector for
-	 * this split/cascade part, TODO see what effect this would have on
-	 * performance of the rest of the program.
-	 */
-
-	if (randomNum < 8)
+	if (uniform(gen) & 1)
 	{
 		Util::splitAndCascade(subject1, subject2, crossoverPoint);
 	}
-	else //if (randomNum < 9)
+	else
 	{
 		Util::splitAndFlipCascade(subject1, subject2, crossoverPoint);
 	}
-	// else
-	// {
-	//     int crossoverPoint2 = Util::generateRandomNumberInRange(1,smallChromosomeSize-2);
-	//     while (crossoverPoint == crossoverPoint2)
-	//     {
-	//         crossoverPoint2 = Util::generateRandomNumberInRange(1,smallChromosomeSize-2);
-	//     }
-	//     if (crossoverPoint2 < crossoverPoint)
-	//     {
-	//         Util::spliceAndCascade(subject1, subject2, crossoverPoint2, crossoverPoint);
-	//     }
-	//     else
-	//     {
-	//         Util::spliceAndCascade(subject1, subject2, crossoverPoint, crossoverPoint2);
-	//     }
-	// }
 
 	for (auto& chromosome : chromosomes)
 	{
@@ -110,10 +90,10 @@ void SolutionFinder::crossover(SolutionModel& solution) const
 SolutionModel SolutionFinder::solutionWithEvolution() const
 {
 	constexpr unsigned max_generations = 1000;
-	constexpr unsigned mutations_per_generation = 10000;
+	constexpr unsigned mutations_per_generation = 1000000;
 	constexpr unsigned max_contiguous_null_generations = 10;
 	constexpr unsigned initial_population = 10000;
-	constexpr unsigned max_population = 10000;
+	constexpr unsigned max_population = 100000;
 
 	const bool progress = !getenv("HIDE_PROGRESS");
 	const bool benching = getenv("BENCH");
@@ -132,15 +112,12 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 	};
 
 	const auto& getBest = [&] () {
-		SolutionModel *sol = nullptr;
-		for (auto& p : population)
-		{
-			if (sol == nullptr || p.getCost() < sol->getCost())
-			{
-				sol = &p;
-			}
-		}
-		return *sol;
+		std::vector<double> costs;
+		costs.reserve(population.size());
+		std::transform(population.cbegin(), population.cend(), std::back_inserter(costs),
+			[] (const auto& p) { return p.getCost(); });
+		const auto min_idx = std::min_element(costs.cbegin(), costs.cend()) - costs.cbegin();
+		return population[min_idx];
 	};
 
 	/* Initial population */
@@ -160,16 +137,19 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 			fprintf(stderr, "\rpopulation=%zu, round=%u/%u (%.1f%%), score=%.1f, null rounds=%u            ", population.size(), generation_num, max_generations, (generation_num * 100.0 / max_generations), leastCost, null_generations);
 		}
 		const auto costThreshold = getBest().getCost();
-		#pragma omp parallel for
+		const auto mutations_per_subject = mutations_per_generation / population.size();
+		const bool parallel_outer = population.size() > (unsigned) omp_get_num_threads() * 20;
+#pragma omp parallel for if(parallel_outer)
 		for (size_t n = 0; n < population.size(); ++n)
 		{
 			const auto& oldSol = population[n];
-			for (unsigned mutation = 0; mutation < mutations_per_generation; mutation++)
+#pragma omp parallel for if(!parallel_outer)
+			for (unsigned mutation = 0; mutation < mutations_per_subject; mutation++)
 			{
 				const auto newSol = make_crossover(oldSol);
 				const auto currSolCost = newSol.getCost();
 				if (currSolCost < costThreshold && newSol.isValid(m_model.numberOfClients()))
-				#pragma omp critical
+#pragma omp critical
 				{
 					if (currSolCost < leastCost)
 					{
@@ -182,6 +162,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		}
 		if (foundBetterGeneration)
 		{
+			/* Cull to keep population limit if necessary */
 			if (generation.size() <= max_population)
 			{
 				population = std::move(generation);
@@ -201,6 +182,11 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 			if (end_count++ == max_contiguous_null_generations && !benching) {
 				break;
 			}
+			/* Take fittest half only */
+			auto end_it = population.begin() + (population.size() / 2 + 1);
+			std::partial_sort(population.begin(), end_it, population.end(),
+				[] (const auto& a, const auto& b) { return a.getCost() < b.getCost(); });
+			population.erase(end_it, population.end());
 		}
 	}
 
