@@ -149,7 +149,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		increase_population();
 	}
 
-	printf("max_generations=%u, mutations_per_generation=%u, max_contiguous_null_generations=%u\n", max_generations, mutations_per_generation, max_contiguous_null_generations);
+	printf("max_generations=%u, mutations_per_generation=%u, max_contiguous_null_generations=%u\ninitial_population=%u, max_population=%u\n", max_generations, mutations_per_generation, max_contiguous_null_generations, initial_population, max_population);
 
 	for (unsigned generation_num = 0; generation_num < max_generations; ++generation_num)
 	{
