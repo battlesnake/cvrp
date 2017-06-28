@@ -151,6 +151,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		if (foundBetterGeneration)
 		{
 			solutions = std::move(generation);
+			fprintf(stderr, "\n");
 		} else {
 			null_generations++;
 			if (end_count++ == max_contiguous_null_generations && !benching) {
@@ -159,7 +160,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		}
 	}
 
-	printf("\n");
+	fprintf(stderr, "\n");
 
 	return solutions.back();
 }
