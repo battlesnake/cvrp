@@ -39,9 +39,9 @@ test:
 
 bench:
 	@echo 'Testing with OpenMP enabled'
-	+@$(MAKE) -s --no-print-directory HIDE_PROGRESS=y O=y OMP=y test
+	+@$(MAKE) -s --no-print-directory HIDE_PROGRESS=y BENCH=y O=y OMP=y test
 	@echo 'Testing with OpenMP disabled'
-	+@$(MAKE) -s --no-print-directory HIDE_PROGRESS=y O=y OMP=n test
+	+@$(MAKE) -s --no-print-directory HIDE_PROGRESS=y BENCH=y O=y OMP=n test
 
 clean :
 	rm -f $(EXECUTABLE) *.o

@@ -110,6 +110,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 	constexpr unsigned max_contiguous_null_generations = 30;
 
 	const bool progress = !getenv("HIDE_PROGRESS");
+	const bool benching = getenv("BENCH");
 
 	std::vector<SolutionModel> solutions;
 	solutions.emplace_back(getNaiveSolution());
@@ -150,7 +151,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 			solutions = std::move(generation);
 		} else {
 			null_generations++;
-			if (end_count++ == max_contiguous_null_generations) {
+			if (end_count++ == max_contiguous_null_generations && !benching) {
 				break;
 			}
 		}
