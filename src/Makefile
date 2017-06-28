@@ -1,5 +1,5 @@
-CXXFLAGS:=-c -Wall -std=c++11 -g -Wextra
-LDFLAG:=-g
+CXXFLAGS:=-c -Wall -std=c++11 -Wextra -ffunction-sections -fdata-sections
+LDFLAG:=-Wl,--gc-sections
 LIBS=
 
 ifeq ($(OMP),y)
@@ -12,11 +12,11 @@ LDFLAGS+=-Wno-unknown-pragmas
 endif
 
 ifeq ($(O),y)
-CXXFLAGS+=-O2 -flto
-LDFLAGS+=-O2 -flto
+CXXFLAGS+=-O2 -flto -s
+LDFLAGS+=-O2 -flto -s
 else
-CXXFLAGS+=-O0
-LDFLAGS+=
+CXXFLAGS+=-O0 -g
+LDFLAGS+=-g
 endif
 
 SOURCES=main.cpp \
