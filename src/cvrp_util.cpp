@@ -6,6 +6,13 @@
 namespace cvrp
 {
 
+static thread_local std::mt19937 _prng(std::random_device{}());
+
+std::mt19937 Util::get_prng()
+{
+    return _prng;
+}
+
 double Util::distance(int x1, int y1, int x2, int y2)
 {
     long dx = x2 - x1;

@@ -2,7 +2,7 @@
 #include "cvrp_util.h"
 #include <algorithm>
 #include <random>
-#include <set>
+#include <unordered_set>
 #include <omp.h>
 #include <csignal>
 #include <atomic>
@@ -19,7 +19,7 @@ SolutionModel SolutionFinder::getNaiveSolution() const
 	SolutionModel solution;
 	solution.chromosomes().push_back(VehicleTrip(m_model));
 	auto genome = m_dnaSequence;
-	std::shuffle(genome.begin(), genome.end(), std::mt19937(std::random_device{}()));
+	std::shuffle(genome.begin(), genome.end(), Util::get_prng());
 	for (const auto& gene : genome)
 	{
 		bool clientOnTrip = false;
@@ -56,8 +56,9 @@ void SolutionFinder::crossover(SolutionModel& solution) const
 {
 	auto& chromosomes = solution.chromosomes();
 
-	static thread_local std::mt19937 gen{std::random_device{}()};
 	std::uniform_int_distribution<int> uniform(1, chromosomes.size() - 1);
+
+	auto gen = Util::get_prng();
 
 	int crossoverSubject1 = uniform(gen);
 	int crossoverSubject2 = uniform(gen);
@@ -99,12 +100,12 @@ void sigend_handler(int)
 
 SolutionModel SolutionFinder::solutionWithEvolution() const
 {
-	constexpr unsigned max_generations = 100;
-	constexpr unsigned mutations_per_generation = 100'000'000;
-	constexpr unsigned max_contiguous_null_generations = 3;
-	constexpr unsigned initial_population = 10'000'000;
-	constexpr unsigned max_population = 10'000'000;
-	constexpr unsigned max_mutations_per_subject = 1'000'000;
+	constexpr unsigned long max_generations = 100;
+	constexpr unsigned long mutations_per_generation = 10'000'000'000;
+	constexpr unsigned long max_contiguous_null_generations = 3;
+	constexpr unsigned long initial_population = 10'000'000;
+	constexpr unsigned long max_population = 10'000'000;
+	constexpr unsigned long max_mutations_per_subject = 1'000'000;
 
 	const bool progress = !getenv("HIDE_PROGRESS");
 	const bool benching = getenv("BENCH");
@@ -126,14 +127,32 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 			{ }
 		bool operator < (const CostedSolution& other) const
 			{ return cost < other.cost; }
+		bool operator == (const CostedSolution& other) const
+			{ return cost == other.cost && model == other.model; }
 	};
 
-	std::set<CostedSolution> population;
+	struct CostedSolutionHash
+	{
+		double operator () (const CostedSolution& x) const
+			{ return x.cost; }
+	};
+
+	struct CostedSolutionEqual
+	{
+		bool operator () (const CostedSolution& x, const CostedSolution& y) const
+			{ return x == y; }
+	};
+
+	using ResultSet = std::unordered_set<CostedSolution, CostedSolutionHash, CostedSolutionEqual>;
+
+	ResultSet population;
+	population.reserve(initial_population);
+	population.max_load_factor(10);
 	double leastCost = std::numeric_limits<double>::infinity();
 	unsigned null_generations = 0;
 	unsigned end_count = 0;
 
-	const auto& getBest = [&] () {
+	const auto getBest = [&] () {
 		const CostedSolution *best_ptr = nullptr;
 		for (const auto& sm : population)
 		{
@@ -146,41 +165,42 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 	};
 
 	/* Initial population */
-	printf("Initialising %'u random solutions\n", initial_population);
+	printf("Initialising %'lu random solutions\n", initial_population);
 	#pragma omp parallel
 	{
-		std::set<CostedSolution> buf;
-#pragma omp for reduction(min:leastCost)
-		for (unsigned i = 0; i < initial_population; ++i)
+		ResultSet buf;
+		buf.reserve(initial_population);
+		population.max_load_factor(10);
+		double localLeastCost = leastCost;
+#pragma omp for
+		for (unsigned long i = 0; i < initial_population; ++i)
 		{
-			const auto it = population.emplace(getNaiveSolution());
+			const auto it = buf.emplace(getNaiveSolution());
 			if (!it.second)
 			{
 				continue;
 			}
 			auto cost = it.first->cost;
-			if (cost < leastCost) {
-				leastCost = cost;
+			if (cost < localLeastCost) {
+				localLeastCost = cost;
 			}
 		}
 #pragma omp critical
 		{
-			for (auto& x : buf)
-			{
-				population.emplace(std::move(x));
-			}
+			leastCost = std::min(leastCost, localLeastCost);
+			population.merge(buf);
 		}
 	}
 
-	printf("max_generations=%'u, mutations_per_generation=%'u, max_contiguous_null_generations=%'u\ninitial_population=%'u, max_population=%'u\n", max_generations, mutations_per_generation, max_contiguous_null_generations, initial_population, max_population);
+	printf("max_generations=%'lu, mutations_per_generation=%'lu, max_contiguous_null_generations=%'lu\ninitial_population=%'lu, max_population=%'lu\n", max_generations, mutations_per_generation, max_contiguous_null_generations, initial_population, max_population);
 
-	for (unsigned generation_num = 0; generation_num < max_generations; ++generation_num)
+	for (unsigned long generation_num = 0; generation_num < max_generations; ++generation_num)
 	{
 		std::vector<CostedSolution> generation;
 		bool foundBetterGeneration = false;
 		if (progress)
 		{
-			fprintf(stderr, "\rpopulation=%'zu, round=%'u/%'u (%.1f%%), score=%.1f, null rounds=%'u            ", population.size(), generation_num, max_generations, (generation_num * 100.0 / max_generations), leastCost, null_generations);
+			fprintf(stderr, "\rpopulation=%'zu, round=%'lu/%'lu (%.1f%%), score=%.1f, null rounds=%'u            ", population.size(), generation_num, max_generations, (generation_num * 100.0 / max_generations), leastCost, null_generations);
 		}
 		const auto prev_best = getBest();
 		const auto mutations_per_subject = std::min<size_t>(mutations_per_generation / population.size(), max_mutations_per_subject);
@@ -196,7 +216,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		{
 			const auto& oldSol = *contiguous[n];
 #pragma omp parallel for if(!parallel_outer)
-			for (unsigned mutation = 0; mutation < mutations_per_subject; mutation++)
+			for (unsigned long mutation = 0; mutation < mutations_per_subject; mutation++)
 			{
 				if (sigend)
 				{

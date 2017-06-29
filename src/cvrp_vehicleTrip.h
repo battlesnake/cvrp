@@ -20,14 +20,17 @@ class VehicleTrip
         bool isValidTrip() const;
         const std::vector<int>& clientSeqConst() const { return m_clientSequence; }
         std::vector<int>& clientSequence() { return m_clientSequence; }
-	size_t getSeqSize() const { return m_clientSequence.size(); }
+        size_t getSeqSize() const { return m_clientSequence.size(); }
         std::string getTripStr() const;
+
+        bool operator == (const VehicleTrip& other) const
+            { return m_clientSequence == other.m_clientSequence && m_model == other.m_model; }
 
     private:
         std::vector<int> m_clientSequence;
         double m_cost;
         int m_demandCovered;
-        const IDataModel& m_model;
+        const IDataModel *m_model;
 };
 
 }//cvrp namespace

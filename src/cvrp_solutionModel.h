@@ -15,6 +15,9 @@ class SolutionModel
         double getCost() const;
         bool isValid(int num_clients) const;
 
+        bool operator == (const SolutionModel& other) const
+            { return m_solution == other.m_solution; }
+
     private:
         std::vector<VehicleTrip> m_solution;
 };
