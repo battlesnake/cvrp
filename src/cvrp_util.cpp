@@ -2,15 +2,26 @@
 
 #include <algorithm>
 #include <cmath>
+#include <omp.h>
 
 namespace cvrp
 {
 
-static thread_local std::mt19937 _prng(std::random_device{}());
+static std::vector<std::mt19937> prngs;
 
-std::mt19937 Util::get_prng()
+void Util::seed_prngs()
 {
-    return _prng;
+    std::random_device rd;
+    prngs.resize(omp_get_num_procs());
+    for (auto& prng : prngs)
+    {
+        prng.seed(rd());
+    }
+}
+
+std::mt19937& Util::get_prng()
+{
+    return prngs[omp_get_thread_num()];
 }
 
 double Util::distance(int x1, int y1, int x2, int y2)

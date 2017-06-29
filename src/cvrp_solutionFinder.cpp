@@ -1,7 +1,6 @@
 #include "cvrp_solutionFinder.h"
 #include "cvrp_util.h"
 #include <algorithm>
-#include <random>
 #include <unordered_set>
 #include <omp.h>
 #include <csignal>
@@ -14,12 +13,10 @@ SolutionFinder::SolutionFinder(const IDataModel& model) : m_model(model), m_dnaS
 {
 }
 
-SolutionModel SolutionFinder::getNaiveSolution() const
+SolutionModel SolutionFinder::getNaiveSolution(const std::vector<int>& genome) const
 {
 	SolutionModel solution;
 	solution.chromosomes().push_back(VehicleTrip(m_model));
-	auto genome = m_dnaSequence;
-	std::shuffle(genome.begin(), genome.end(), Util::get_prng());
 	for (const auto& gene : genome)
 	{
 		bool clientOnTrip = false;
@@ -169,6 +166,8 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		return *best_ptr;
 	};
 
+	Util::seed_prngs();
+
 	/* Initial population */
 	printf("Initialising %'lu random solutions\n", initial_population);
 	#pragma omp parallel
@@ -177,10 +176,13 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		buf.reserve(initial_population);
 		buf.max_load_factor(10);
 		double localLeastCost = leastCost;
+		auto& prng = Util::get_prng();
+		auto genome = m_dnaSequence;
 #pragma omp for
 		for (unsigned long i = 0; i < initial_population; ++i)
 		{
-			const auto it = buf.emplace(getNaiveSolution());
+			std::shuffle(genome.begin(), genome.end(), prng);
+			const auto it = buf.emplace(getNaiveSolution(genome));
 			if (!it.second)
 			{
 				continue;

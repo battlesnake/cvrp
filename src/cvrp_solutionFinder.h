@@ -11,7 +11,7 @@ class SolutionFinder
     public:
         SolutionFinder(const IDataModel& model);
 
-        SolutionModel getNaiveSolution() const;
+        SolutionModel getNaiveSolution(const std::vector<int>& genome) const;
         bool validateSolution(const SolutionModel& solution) const;
         SolutionModel solutionWithEvolution() const;
 
