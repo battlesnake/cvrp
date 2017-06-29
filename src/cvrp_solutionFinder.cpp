@@ -175,7 +175,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 	{
 		ResultSet buf;
 		buf.reserve(initial_population);
-		population.max_load_factor(10);
+		buf.max_load_factor(10);
 		double localLeastCost = leastCost;
 #pragma omp for
 		for (unsigned long i = 0; i < initial_population; ++i)
