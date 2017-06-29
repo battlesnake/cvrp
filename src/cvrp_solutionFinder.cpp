@@ -104,6 +104,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 	constexpr unsigned max_contiguous_null_generations = 3;
 	constexpr unsigned initial_population = 100'000;
 	constexpr unsigned max_population = 100'000;
+	constexpr unsigned max_mutations_per_subject = 100'000;
 
 	const bool progress = !getenv("HIDE_PROGRESS");
 	const bool benching = getenv("BENCH");
@@ -172,7 +173,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 			fprintf(stderr, "\rpopulation=%zu, round=%u/%u (%.1f%%), score=%.1f, null rounds=%u            ", population.size(), generation_num, max_generations, (generation_num * 100.0 / max_generations), leastCost, null_generations);
 		}
 		const auto prev_best = getBest();
-		const auto mutations_per_subject = mutations_per_generation / population.size();
+		const auto mutations_per_subject = std::min<size_t>(mutations_per_generation / population.size(), max_mutations_per_subject);
 		const bool parallel_outer = population.size() > (unsigned) omp_get_num_threads() * 20;
 		/* Buffer in contiguous container for simple parallelisation */
 		std::vector<const CostedSolution *> contiguous;
