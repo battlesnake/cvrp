@@ -125,8 +125,6 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 			cost(model.getCost()),
 			model(model)
 			{ }
-		bool operator < (const CostedSolution& other) const
-			{ return cost < other.cost; }
 		bool operator == (const CostedSolution& other) const
 			{ return cost == other.cost && model == other.model; }
 	};
@@ -230,7 +228,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 					continue;
 				}
 				auto newSol = CostedSolution(make_crossover(oldSol.model));
-				if (newSol < prev_best && newSol.model.isValid(m_model.numberOfClients()))
+				if (newSol.cost < prev_best.cost && newSol.model.isValid(m_model.numberOfClients()))
 #pragma omp critical
 				{
 					if (newSol.cost < leastCost)
@@ -248,7 +246,10 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 			if (generation.size() > max_population)
 			{
 				auto end_it = generation.begin() + max_population;
-				std::partial_sort(generation.begin(), end_it, generation.end());
+				std::partial_sort(generation.begin(), end_it, generation.end(),
+					[] (const auto& a, const auto& b) {
+						return a.cost < b.cost;
+					});
 			}
 			population.clear();
 			size_t count = 0;
