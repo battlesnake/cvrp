@@ -91,7 +91,7 @@ void SolutionFinder::crossover(SolutionModel& solution) const
 SolutionModel SolutionFinder::solutionWithEvolution() const
 {
 	constexpr unsigned max_generations = 1'000;
-	constexpr unsigned mutations_per_generation = 1'000'000;
+	constexpr unsigned mutations_per_generation = 100'000'000;
 	constexpr unsigned max_contiguous_null_generations = 10;
 	constexpr unsigned initial_population = 100'000;
 	constexpr unsigned max_population = 100'000;
