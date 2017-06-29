@@ -2,6 +2,7 @@
 #include "cvrp_util.h"
 #include <algorithm>
 #include <random>
+#include <set>
 #include <omp.h>
 
 namespace cvrp
@@ -90,7 +91,7 @@ void SolutionFinder::crossover(SolutionModel& solution) const
 SolutionModel SolutionFinder::solutionWithEvolution() const
 {
 	constexpr unsigned max_generations = 1'000;
-	constexpr unsigned mutations_per_generation = 100'000'000;
+	constexpr unsigned mutations_per_generation = 1'000'000;
 	constexpr unsigned max_contiguous_null_generations = 10;
 	constexpr unsigned initial_population = 100'000;
 	constexpr unsigned max_population = 100'000;
@@ -98,26 +99,48 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 	const bool progress = !getenv("HIDE_PROGRESS");
 	const bool benching = getenv("BENCH");
 
-	std::vector<SolutionModel> population;
+	struct CostedSolution
+	{
+		double cost;
+		SolutionModel model;
+		CostedSolution(SolutionModel&& model) :
+			cost(model.getCost()),
+			model(std::move(model))
+			{ }
+		CostedSolution(const SolutionModel& model) :
+			cost(model.getCost()),
+			model(model)
+			{ }
+		bool operator < (const CostedSolution& other) const
+			{ return cost < other.cost; }
+	};
+
+	std::set<CostedSolution> population;
 	double leastCost = -std::numeric_limits<double>::infinity();
 	unsigned null_generations = 0;
 	unsigned end_count = 0;
 
 	const auto increase_population = [&] () {
-		population.emplace_back(getNaiveSolution());
-		auto cost = population.back().getCost();
+		const auto it = population.emplace(getNaiveSolution());
+		if (!it.second) {
+			return;
+		}
+		auto cost = it.first->cost;
 		if (cost < leastCost || std::isinf(leastCost)) {
 			leastCost = cost;
 		}
 	};
 
 	const auto& getBest = [&] () {
-		std::vector<double> costs;
-		costs.reserve(population.size());
-		std::transform(population.cbegin(), population.cend(), std::back_inserter(costs),
-			[] (const auto& p) { return p.getCost(); });
-		const auto min_idx = std::min_element(costs.cbegin(), costs.cend()) - costs.cbegin();
-		return population[min_idx];
+		const CostedSolution *best_ptr = nullptr;
+		for (const auto& sm : population)
+		{
+			if (!best_ptr || sm.cost < best_ptr->cost)
+			{
+				best_ptr = &sm;
+			}
+		}
+		return *best_ptr;
 	};
 
 	/* Initial population */
@@ -130,48 +153,58 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 
 	for (unsigned generation_num = 0; generation_num < max_generations; ++generation_num)
 	{
-		std::vector<SolutionModel> generation;
+		std::vector<CostedSolution> generation;
 		bool foundBetterGeneration = false;
 		if (progress)
 		{
 			fprintf(stderr, "\rpopulation=%zu, round=%u/%u (%.1f%%), score=%.1f, null rounds=%u            ", population.size(), generation_num, max_generations, (generation_num * 100.0 / max_generations), leastCost, null_generations);
 		}
-		const auto costThreshold = getBest().getCost();
+		const auto prev_best = getBest();
 		const auto mutations_per_subject = mutations_per_generation / population.size();
 		const bool parallel_outer = population.size() > (unsigned) omp_get_num_threads() * 20;
-#pragma omp parallel for if(parallel_outer)
-		for (size_t n = 0; n < population.size(); ++n)
+		/* Buffer in contiguous container for simple parallelisation */
+		std::vector<const CostedSolution *> contiguous;
+		for (const auto& subject : population)
 		{
-			const auto& oldSol = population[n];
+			contiguous.emplace_back(&subject);
+		}
+#pragma omp parallel for if(parallel_outer)
+		for (size_t n = 0; n < contiguous.size(); ++n)
+		{
+			const auto& oldSol = *contiguous[n];
 #pragma omp parallel for if(!parallel_outer)
 			for (unsigned mutation = 0; mutation < mutations_per_subject; mutation++)
 			{
-				const auto newSol = make_crossover(oldSol);
-				const auto currSolCost = newSol.getCost();
-				if (currSolCost < costThreshold && newSol.isValid(m_model.numberOfClients()))
+				auto newSol = CostedSolution(make_crossover(oldSol.model));
+				if (newSol < prev_best && newSol.model.isValid(m_model.numberOfClients()))
 #pragma omp critical
 				{
-					if (currSolCost < leastCost)
+					if (newSol.cost < leastCost)
 					{
-						leastCost = currSolCost;
+						leastCost = newSol.cost;
 						foundBetterGeneration = true;
 					}
-					generation.push_back(newSol);
+					generation.emplace_back(std::move(newSol));
 				}
 			}
 		}
 		if (foundBetterGeneration)
 		{
 			/* Cull to keep population limit if necessary */
-			if (generation.size() <= max_population)
+			if (generation.size() > max_population)
 			{
-				population = std::move(generation);
-			} else {
 				auto end_it = generation.begin() + max_population;
-				std::partial_sort(generation.begin(), end_it, generation.end(),
-					[] (const auto& a, const auto& b) { return a.getCost() < b.getCost(); });
-				population.clear();
-				std::move(generation.begin(), end_it, std::back_inserter(population));
+				std::partial_sort(generation.begin(), end_it, generation.end());
+			}
+			population.clear();
+			size_t count = 0;
+			for (auto& x : generation)
+			{
+				if (count++ == max_population)
+				{
+					break;
+				}
+				population.emplace(std::move(x));
 			}
 			if (progress)
 			{
@@ -182,11 +215,6 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 			if (end_count++ == max_contiguous_null_generations && !benching) {
 				break;
 			}
-			/* Take fittest half only */
-			auto end_it = population.begin() + (population.size() / 2 + 1);
-			std::partial_sort(population.begin(), end_it, population.end(),
-				[] (const auto& a, const auto& b) { return a.getCost() < b.getCost(); });
-			population.erase(end_it, population.end());
 		}
 	}
 
@@ -195,7 +223,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		fprintf(stderr, "\n");
 	}
 
-	return getBest();
+	return std::move(getBest().model);
 }
 
 }//cvrp namespace
