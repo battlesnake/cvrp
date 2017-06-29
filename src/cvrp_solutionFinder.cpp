@@ -146,10 +146,11 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 	};
 
 	/* Initial population */
+	printf("Initialising %'u random solutions\n", initial_population);
 	#pragma omp parallel
 	{
 		std::set<CostedSolution> buf;
-		#pragma omp for reduction(min:leastCost)
+#pragma omp for reduction(min:leastCost)
 		for (unsigned i = 0; i < initial_population; ++i)
 		{
 			const auto it = population.emplace(getNaiveSolution());
@@ -162,7 +163,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 				leastCost = cost;
 			}
 		}
-		#pragma omp critical
+#pragma omp critical
 		{
 			for (auto& x : buf)
 			{
@@ -171,7 +172,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		}
 	}
 
-	printf("max_generations=%u, mutations_per_generation=%u, max_contiguous_null_generations=%u\ninitial_population=%u, max_population=%u\n", max_generations, mutations_per_generation, max_contiguous_null_generations, initial_population, max_population);
+	printf("max_generations=%'u, mutations_per_generation=%'u, max_contiguous_null_generations=%'u\ninitial_population=%'u, max_population=%'u\n", max_generations, mutations_per_generation, max_contiguous_null_generations, initial_population, max_population);
 
 	for (unsigned generation_num = 0; generation_num < max_generations; ++generation_num)
 	{
@@ -179,7 +180,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		bool foundBetterGeneration = false;
 		if (progress)
 		{
-			fprintf(stderr, "\rpopulation=%zu, round=%u/%u (%.1f%%), score=%.1f, null rounds=%u            ", population.size(), generation_num, max_generations, (generation_num * 100.0 / max_generations), leastCost, null_generations);
+			fprintf(stderr, "\rpopulation=%'zu, round=%'u/%'u (%.1f%%), score=%.1f, null rounds=%'u            ", population.size(), generation_num, max_generations, (generation_num * 100.0 / max_generations), leastCost, null_generations);
 		}
 		const auto prev_best = getBest();
 		const auto mutations_per_subject = std::min<size_t>(mutations_per_generation / population.size(), max_mutations_per_subject);
