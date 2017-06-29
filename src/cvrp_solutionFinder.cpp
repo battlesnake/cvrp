@@ -133,8 +133,15 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 
 	struct CostedSolutionHash
 	{
-		double operator () (const CostedSolution& x) const
-			{ return x.cost; }
+		size_t operator () (const CostedSolution& x) const
+		{
+			union {
+				size_t s;
+				double d;
+			} t;
+			t.d = x.cost;
+			return t.s ^ x.model.hash();
+		}
 	};
 
 	struct CostedSolutionEqual

@@ -51,6 +51,22 @@ void VehicleTrip::reEvaluateDemandAndCost()
     optimiseCost();
 }
 
+size_t VehicleTrip::calcHash() const
+{
+    size_t ret = 1;
+    for (auto x : m_clientSequence)
+    {
+        ret++;
+		if (!x)
+		{
+			x = 1;
+		}
+        ret *= x;
+        ret ^= x*x;
+    }
+    return ret;
+}
+
 void VehicleTrip::optimiseCost()
 {
     m_cost = 0;
@@ -68,6 +84,7 @@ void VehicleTrip::optimiseCost()
         }
         for (unsigned int j = i+1; j < m_clientSequence.size(); j++)
         {
+            m_hash *= m_clientSequence[j];
             double currCost;
             if (i==0)
             {
@@ -92,6 +109,7 @@ void VehicleTrip::optimiseCost()
         m_cost += leastCost;
     }
     m_cost += m_model->getClientDistanceFromDepot(m_clientSequence.back());
+    m_hash = hash();
 }
 
 }//cvrp namespace

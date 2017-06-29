@@ -18,6 +18,8 @@ class SolutionModel
         bool operator == (const SolutionModel& other) const
             { return m_solution == other.m_solution; }
 
+        size_t hash() const;
+
     private:
         std::vector<VehicleTrip> m_solution;
 };

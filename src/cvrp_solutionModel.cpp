@@ -51,4 +51,21 @@ bool SolutionModel::isValid(int num_clients) const
 	return true;
 }
 
+size_t SolutionModel::hash() const
+{
+	size_t ret = 1;
+	for (const auto& x : m_solution)
+	{
+		ret++;
+		auto h = x.hash();
+		if (!h)
+		{
+			h = 1;
+		}
+		ret *= h;
+		ret ^= h*h;
+	}
+	return ret;
+}
+
 }//cvrp namespace
