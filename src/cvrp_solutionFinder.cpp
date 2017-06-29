@@ -4,6 +4,8 @@
 #include <random>
 #include <set>
 #include <omp.h>
+#include <csignal>
+#include <atomic>
 
 namespace cvrp
 {
@@ -88,16 +90,26 @@ void SolutionFinder::crossover(SolutionModel& solution) const
 	}
 }
 
+std::atomic_bool sigend{false};
+
+void sigend_handler(int)
+{
+	sigend = true;
+}
+
 SolutionModel SolutionFinder::solutionWithEvolution() const
 {
 	constexpr unsigned max_generations = 1'000;
 	constexpr unsigned mutations_per_generation = 100'000'000;
-	constexpr unsigned max_contiguous_null_generations = 10;
+	constexpr unsigned max_contiguous_null_generations = 3;
 	constexpr unsigned initial_population = 100'000;
 	constexpr unsigned max_population = 100'000;
 
 	const bool progress = !getenv("HIDE_PROGRESS");
 	const bool benching = getenv("BENCH");
+
+	std::signal(SIGINT, sigend_handler);
+	std::signal(SIGTERM, sigend_handler);
 
 	struct CostedSolution
 	{
@@ -175,6 +187,10 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 #pragma omp parallel for if(!parallel_outer)
 			for (unsigned mutation = 0; mutation < mutations_per_subject; mutation++)
 			{
+				if (sigend)
+				{
+					continue;
+				}
 				auto newSol = CostedSolution(make_crossover(oldSol.model));
 				if (newSol < prev_best && newSol.model.isValid(m_model.numberOfClients()))
 #pragma omp critical
@@ -215,6 +231,10 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 			if (end_count++ == max_contiguous_null_generations && !benching) {
 				break;
 			}
+		}
+		if (sigend)
+		{
+			break;
 		}
 	}
 
