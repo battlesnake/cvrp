@@ -99,12 +99,12 @@ void sigend_handler(int)
 
 SolutionModel SolutionFinder::solutionWithEvolution() const
 {
-	constexpr unsigned max_generations = 1'000;
+	constexpr unsigned max_generations = 100;
 	constexpr unsigned mutations_per_generation = 100'000'000;
 	constexpr unsigned max_contiguous_null_generations = 3;
-	constexpr unsigned initial_population = 100'000;
-	constexpr unsigned max_population = 100'000;
-	constexpr unsigned max_mutations_per_subject = 100'000;
+	constexpr unsigned initial_population = 10'000'000;
+	constexpr unsigned max_population = 10'000'000;
+	constexpr unsigned max_mutations_per_subject = 1'000'000;
 
 	const bool progress = !getenv("HIDE_PROGRESS");
 	const bool benching = getenv("BENCH");
@@ -129,20 +129,9 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 	};
 
 	std::set<CostedSolution> population;
-	double leastCost = -std::numeric_limits<double>::infinity();
+	double leastCost = std::numeric_limits<double>::infinity();
 	unsigned null_generations = 0;
 	unsigned end_count = 0;
-
-	const auto increase_population = [&] () {
-		const auto it = population.emplace(getNaiveSolution());
-		if (!it.second) {
-			return;
-		}
-		auto cost = it.first->cost;
-		if (cost < leastCost || std::isinf(leastCost)) {
-			leastCost = cost;
-		}
-	};
 
 	const auto& getBest = [&] () {
 		const CostedSolution *best_ptr = nullptr;
@@ -157,9 +146,29 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 	};
 
 	/* Initial population */
-	for (unsigned i = 0; i < initial_population; ++i)
+	#pragma omp parallel
 	{
-		increase_population();
+		std::set<CostedSolution> buf;
+		#pragma omp for reduction(min:leastCost)
+		for (unsigned i = 0; i < initial_population; ++i)
+		{
+			const auto it = population.emplace(getNaiveSolution());
+			if (!it.second)
+			{
+				continue;
+			}
+			auto cost = it.first->cost;
+			if (cost < leastCost) {
+				leastCost = cost;
+			}
+		}
+		#pragma omp critical
+		{
+			for (auto& x : buf)
+			{
+				population.emplace(std::move(x));
+			}
+		}
 	}
 
 	printf("max_generations=%u, mutations_per_generation=%u, max_contiguous_null_generations=%u\ninitial_population=%u, max_population=%u\n", max_generations, mutations_per_generation, max_contiguous_null_generations, initial_population, max_population);

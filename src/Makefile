@@ -1,5 +1,5 @@
 CXXFLAGS:=-c -Wall -std=c++14 -Wextra -ffunction-sections -fdata-sections -march=native
-LDFLAG:=-Wl,--gc-sections
+LDFLAGS:=-Wl,--gc-sections
 LIBS=
 
 OMP?=y
