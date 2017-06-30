@@ -100,7 +100,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 	constexpr unsigned long max_generations = 100;
 	constexpr unsigned long max_mutations_per_generation = 10'000'000'000;
 	constexpr unsigned long max_contiguous_null_generations = 3;
-	constexpr unsigned long initial_population = 10'000'000;
+	constexpr unsigned long initial_population = 1'000'000;
 	constexpr unsigned long max_population = 10'000'000;
 	constexpr unsigned long max_mutations_per_subject = 1'000'000;
 
