@@ -251,28 +251,22 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 						foundBetterGeneration = true;
 					}
 					generation.emplace_back(std::move(newSol));
+					if (generation.size() > max_population)
+					{
+						auto it = std::max_element(generation.begin(), generation.end(),
+							[] (const auto& a, const auto& b) {
+								return a.cost < b.cost;
+							});
+						generation.erase(it);
+					}
 				}
 			}
 		}
 		if (foundBetterGeneration)
 		{
-			/* Cull to keep population limit if necessary */
-			if (generation.size() > max_population)
-			{
-				auto end_it = generation.begin() + max_population;
-				std::partial_sort(generation.begin(), end_it, generation.end(),
-					[] (const auto& a, const auto& b) {
-						return a.cost < b.cost;
-					});
-			}
 			population.clear();
-			size_t count = 0;
 			for (auto& x : generation)
 			{
-				if (count++ == max_population)
-				{
-					break;
-				}
 				population.emplace(std::move(x));
 			}
 			if (progress)
