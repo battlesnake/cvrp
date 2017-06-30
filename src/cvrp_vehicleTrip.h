@@ -26,6 +26,9 @@ class VehicleTrip
         bool operator == (const VehicleTrip& other) const
             { return m_clientSequence == other.m_clientSequence && m_model == other.m_model; }
 
+        bool operator < (const VehicleTrip& other) const
+            { return m_clientSequence < other.m_clientSequence && m_model == other.m_model; }
+
         size_t hash() const { return m_hash; }
 
     private:
