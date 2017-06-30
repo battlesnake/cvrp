@@ -166,6 +166,18 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		return *best_ptr;
 	};
 
+	const auto getWorst = [&] () {
+		const CostedSolution *best_ptr = nullptr;
+		for (const auto& sm : population)
+		{
+			if (!best_ptr || sm.cost > best_ptr->cost)
+			{
+				best_ptr = &sm;
+			}
+		}
+		return *best_ptr;
+	};
+
 	Util::seed_prngs();
 
 	/* Initial population */
@@ -209,7 +221,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		{
 			fprintf(stderr, "\rpopulation=%'zu, round=%'lu/%'lu (%.1f%%), score=%.1f, null rounds=%'u            ", population.size(), generation_num, max_generations, (generation_num * 100.0 / max_generations), leastCost, null_generations);
 		}
-		const auto prev_best = getBest();
+		const auto threshold = getWorst();
 		const auto mutations_per_subject = std::min<size_t>(max_mutations_per_generation / population.size(), max_mutations_per_subject);
 		const bool parallel_outer = population.size() > (unsigned) omp_get_num_threads() * 20;
 		/* Buffer in contiguous container for simple parallelisation */
@@ -230,7 +242,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 					continue;
 				}
 				auto newSol = CostedSolution(make_crossover(oldSol.model));
-				if (newSol.cost < prev_best.cost && newSol.model.isValid(m_model.numberOfClients()))
+				if (newSol.cost < threshold.cost && newSol.model.isValid(m_model.numberOfClients()))
 #pragma omp critical
 				{
 					if (newSol.cost < leastCost)
