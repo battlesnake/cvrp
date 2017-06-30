@@ -98,7 +98,7 @@ void sigend_handler(int)
 SolutionModel SolutionFinder::solutionWithEvolution() const
 {
 	constexpr unsigned long max_generations = 100;
-	constexpr unsigned long mutations_per_generation = 10'000'000'000;
+	constexpr unsigned long max_mutations_per_generation = 10'000'000'000;
 	constexpr unsigned long max_contiguous_null_generations = 3;
 	constexpr unsigned long initial_population = 10'000'000;
 	constexpr unsigned long max_population = 10'000'000;
@@ -199,7 +199,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 		}
 	}
 
-	printf("max_generations=%'lu, mutations_per_generation=%'lu, max_contiguous_null_generations=%'lu\ninitial_population=%'lu, max_population=%'lu\n", max_generations, mutations_per_generation, max_contiguous_null_generations, initial_population, max_population);
+	printf("max_generations=%'lu, max_mutations_per_generation=%'lu, max_contiguous_null_generations=%'lu\ninitial_population=%'lu, max_population=%'lu\n", max_generations, max_mutations_per_generation, max_contiguous_null_generations, initial_population, max_population);
 
 	for (unsigned long generation_num = 0; generation_num < max_generations; ++generation_num)
 	{
@@ -210,7 +210,7 @@ SolutionModel SolutionFinder::solutionWithEvolution() const
 			fprintf(stderr, "\rpopulation=%'zu, round=%'lu/%'lu (%.1f%%), score=%.1f, null rounds=%'u            ", population.size(), generation_num, max_generations, (generation_num * 100.0 / max_generations), leastCost, null_generations);
 		}
 		const auto prev_best = getBest();
-		const auto mutations_per_subject = std::min<size_t>(mutations_per_generation / population.size(), max_mutations_per_subject);
+		const auto mutations_per_subject = std::min<size_t>(max_mutations_per_generation / population.size(), max_mutations_per_subject);
 		const bool parallel_outer = population.size() > (unsigned) omp_get_num_threads() * 20;
 		/* Buffer in contiguous container for simple parallelisation */
 		std::vector<const CostedSolution *> contiguous;
